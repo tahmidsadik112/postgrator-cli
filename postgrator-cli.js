@@ -135,8 +135,6 @@ async function run(commandLineArgs, callback) {
     try {
         postgrator = new Postgrator(postgratorConfig);
         if (commandLineArgs.info) {
-            const currentVersion = await postgrator.getDatabaseVersion();
-
             const migrationsFromDb = (await postgrator.runQuery('SELECT * FROM schemaversion')).rows.map((m) => {
                 const newObj = {};
                 Object.keys(m).forEach((k) => {
@@ -144,7 +142,7 @@ async function run(commandLineArgs, callback) {
                 });
                 return newObj;
             }).reduce((acc, current) => {
-                acc[currentVersion] = current;
+                acc[current.version] = current;
                 return acc;
             }, {});
 
