@@ -2,7 +2,7 @@
   "name": "postgrator-cli",
   "version": "3.1.0",
   "description": "Command line interface for Postgrator",
-  "author": "Matti Lehtinen <matlehti@gmail.com> (https://twitter.com/MattiLehtinen)",
+  "author": "Matti Lehtinen <matlehti@gmail.com> (https://twitter.com/MattiLehtinen) | Tahmid Sadik",
   "bin": {
     "postgrator": "./index.js"
   },
@@ -46,9 +46,13 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "chalk": "^2.4.2",
+    "cli-highlight": "^2.1.0",
     "command-line-args": "^5.0.2",
     "command-line-usage": "^5.0.5",
-    "postgrator": "^3.7.0"
+    "mysql": "^2.16.0",
+    "postgrator": "^3.7.0",
+    "table": "^5.2.3"
   },
   "devDependencies": {
     "async": "^2.6.1",

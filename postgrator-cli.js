@@ -2,8 +2,12 @@ const fs = require('fs');
 const path = require('path');
 const getUsage = require('command-line-usage');
 const Postgrator = require('postgrator');
+const { table, getBorderCharacters } = require('table');
+const { highlight } = require('cli-highlight');
+const chalk = require('chalk');
 const pjson = require('./package.json');
 const commandLineOptions = require('./command-line-options');
+
 
 const defaultConfigFile = 'postgrator.json';
 
@@ -13,11 +17,14 @@ function printUsage() {
 }
 
 function promiseToCallback(promise, callback) {
-    promise.then((data) => {
-        process.nextTick(callback, null, data);
-    }, (err) => {
-        process.nextTick(callback, err);
-    });
+    promise.then(
+        (data) => {
+            process.nextTick(callback, null, data);
+        },
+        (err) => {
+            process.nextTick(callback, err);
+        }
+    );
 }
 
 function logMessage(message) {
@@ -40,9 +47,9 @@ function getConflictingMigrations(migrations) {
 }
 
 function areConflictingMigrations(migrationA, migrationB) {
-    return migrationA.action === migrationB.action
-        && migrationA.version === migrationB.version
-        && migrationA.filename !== migrationB.filename;
+    return (
+        migrationA.action === migrationB.action && migrationA.version === migrationB.version && migrationA.filename !== migrationB.filename
+    );
 }
 
 function getMigrationFileNames(migrations) {
@@ -51,7 +58,7 @@ function getMigrationFileNames(migrations) {
 
 /* -------------------------- Main ---------------------------------- */
 
-function run(commandLineArgs, callback) {
+async function run(commandLineArgs, callback) {
     if (commandLineArgs.help) {
         printUsage();
         callback(null);
@@ -83,7 +90,7 @@ function run(commandLineArgs, callback) {
 
     let postgratorConfig;
     if (commandLineArgs.config) {
-        const configFile = (path.isAbsolute(commandLineArgs.config))
+        const configFile = path.isAbsolute(commandLineArgs.config)
             ? commandLineArgs.config
             : path.join(process.cwd(), commandLineArgs.config);
 
@@ -127,24 +134,77 @@ function run(commandLineArgs, callback) {
     let postgrator;
     try {
         postgrator = new Postgrator(postgratorConfig);
+        if (commandLineArgs.info) {
+            const currentVersion = await postgrator.getDatabaseVersion();
+
+            const migrationsFromDb = (await postgrator.runQuery('SELECT * FROM schemaversion')).rows.map((m) => {
+                const newObj = {};
+                Object.keys(m).forEach((k) => {
+                    newObj[k] = m[k];
+                });
+                return newObj;
+            }).reduce((acc, current) => {
+                acc[currentVersion] = current;
+                return acc;
+            }, {});
+
+            const migrations = (await postgrator.getMigrations()).filter(m => m.action === 'do').map((m) => {
+                const link = [`file://${postgratorConfig.migrationDirectory}/${m.filename}`].join('');
+                m.queryString = `${highlight(m.getSql().substr(0, 250), {
+                    language: 'sql',
+                    ignoreIllegals: true,
+                })}\n${link}`;
+                if (migrationsFromDb[`${m.version}`]) {
+                    return {
+                        ...m,
+                        status: m.md5 === migrationsFromDb[m.version].md5 ? chalk.bgHex('#00c300').hex('#000000').bold('SUCCESS') : chalk.bgHex('#c91900').hex('#FFFFFF').bold('CORRUPTED'),
+                        ranAt: migrationsFromDb[m.version].run_at,
+                    };
+                }
+
+                return {
+                    ...m,
+                    status: chalk.bgHex('#c7c500').hex('#000000').bold('PENDING'),
+                    ranAt: 'N/A',
+                };
+            });
+
+            const tableHeaders = ['NAME', 'VERSION', 'STATUS', 'RAN_AT', 'HASH', 'SQL'];
+            const tableData = [
+                tableHeaders,
+                ...migrations.map(m => [m.name, m.version, m.status, m.ranAt, m.md5, m.queryString]),
+            ];
+
+            const tableConfig = {
+                columns: {
+                    1: {
+                        width: 7,
+                    },
+                    3: {
+                        width: 15,
+                    },
+                    4: {
+                        width: 17,
+                    },
+                },
+                border: getBorderCharacters('norc'),
+            };
+            console.log(table(tableData, tableConfig));
+            return;
+        }
     } catch (err) {
         printUsage();
         callback(err);
         return;
     }
 
-    postgrator.on(
-        'validation-started',
-        migration => logMessage(`verifying checksum of migration ${migration.filename}`)
-    );
-    postgrator.on(
-        'migration-started',
-        migration => logMessage(`running ${migration.filename}`)
-    );
+    postgrator.on('validation-started', migration => logMessage(`verifying checksum of migration ${migration.filename}`));
+    postgrator.on('migration-started', migration => logMessage(`running ${migration.filename}`));
 
     let databaseVersion = null;
 
-    const migratePromise = postgrator.getMigrations()
+    const migratePromise = postgrator
+        .getMigrations()
         .then((migrations) => {
             if (!migrations || !migrations.length) {
                 throw new Error(`No migration files found from "${postgratorConfig.migrationDirectory}"`);
@@ -175,7 +235,7 @@ function run(commandLineArgs, callback) {
             return commandLineArgs.to;
         })
         .then((version) => {
-            logMessage(`migrating ${(version >= databaseVersion) ? 'up' : 'down'} to ${version}`);
+            logMessage(`migrating ${version >= databaseVersion ? 'up' : 'down'} to ${version}`);
         })
         .then(() => {
             return postgrator.migrate(commandLineArgs.to);

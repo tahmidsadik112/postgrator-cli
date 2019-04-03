@@ -52,6 +52,10 @@ const optionDefinitions = [
         alias: 'c', type: String, typeLabel: '{underline file}',
     },
     {
+        name: 'info', description: 'Prints details about all pending and current migrations',
+        alias: 'i', type: Boolean,
+    },
+    {
         name: 'version', description: 'Print version.',
         alias: 'v', type: Boolean,
     },
