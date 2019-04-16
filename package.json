@@ -1,6 +1,6 @@
 {
   "name": "postgrator-cli2",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Command line interface for Postgrator",
   "author": "Matti Lehtinen <matlehti@gmail.com> (https://twitter.com/MattiLehtinen) | Tahmid Sadik",
   "bin": {
@@ -52,6 +52,8 @@
     "command-line-usage": "^5.0.5",
     "mysql": "^2.16.0",
     "postgrator": "^3.7.0",
+    "prompts": "^2.0.4",
+    "require-from-string": "^2.0.2",
     "table": "^5.2.3"
   },
   "devDependencies": {

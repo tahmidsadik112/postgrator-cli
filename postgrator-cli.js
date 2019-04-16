@@ -5,9 +5,9 @@ const Postgrator = require('postgrator');
 const { table, getBorderCharacters } = require('table');
 const { highlight } = require('cli-highlight');
 const chalk = require('chalk');
+const prompts = require('prompts');
 const pjson = require('./package.json');
 const commandLineOptions = require('./command-line-options');
-
 
 const defaultConfigFile = 'postgrator.json';
 
@@ -135,43 +135,56 @@ async function run(commandLineArgs, callback) {
     try {
         postgrator = new Postgrator(postgratorConfig);
         if (commandLineArgs.info) {
-            const migrationsFromDb = (await postgrator.runQuery('SELECT * FROM schemaversion')).rows.map((m) => {
-                const newObj = {};
-                Object.keys(m).forEach((k) => {
-                    newObj[k] = m[k];
-                });
-                return newObj;
-            }).reduce((acc, current) => {
-                acc[current.version] = current;
-                return acc;
-            }, {});
+            const migrationsFromDb = (await postgrator.runQuery('SELECT * FROM schemaversion')).rows
+                .map((m) => {
+                    const newObj = {};
+                    Object.keys(m).forEach((k) => {
+                        newObj[k] = m[k];
+                    });
+                    return newObj;
+                })
+                .reduce((acc, current) => {
+                    acc[current.version] = current;
+                    return acc;
+                }, {});
 
-            const migrations = (await postgrator.getMigrations()).filter(m => m.action === 'do').map((m) => {
-                const link = [`file://${postgratorConfig.migrationDirectory}/${m.filename}`].join('');
-                m.queryString = `${highlight(m.getSql().substr(0, 250), {
-                    language: 'sql',
-                    ignoreIllegals: true,
-                })}\n${link}`;
-                if (migrationsFromDb[`${m.version}`]) {
+            const migrations = (await postgrator.getMigrations())
+                .filter(m => m.action === 'do')
+                .map((m) => {
+                    const link = [`file://${postgratorConfig.migrationDirectory}/${m.filename}`].join('');
+                    m.queryString = `${highlight(m.getSql().substr(0, 250), {
+                        language: 'sql',
+                        ignoreIllegals: true,
+                    })}\n${link}`;
+                    if (migrationsFromDb[`${m.version}`]) {
+                        return {
+                            ...m,
+                            status:
+                                m.md5 === migrationsFromDb[m.version].md5
+                                    ? chalk
+                                        .bgHex('#00c300')
+                                        .hex('#000000')
+                                        .bold('SUCCESS')
+                                    : chalk
+                                        .bgHex('#c91900')
+                                        .hex('#FFFFFF')
+                                        .bold('CORRUPTED'),
+                            ranAt: migrationsFromDb[m.version].run_at,
+                        };
+                    }
+
                     return {
                         ...m,
-                        status: m.md5 === migrationsFromDb[m.version].md5 ? chalk.bgHex('#00c300').hex('#000000').bold('SUCCESS') : chalk.bgHex('#c91900').hex('#FFFFFF').bold('CORRUPTED'),
-                        ranAt: migrationsFromDb[m.version].run_at,
+                        status: chalk
+                            .bgHex('#c7c500')
+                            .hex('#000000')
+                            .bold('PENDING'),
+                        ranAt: 'N/A',
                     };
-                }
-
-                return {
-                    ...m,
-                    status: chalk.bgHex('#c7c500').hex('#000000').bold('PENDING'),
-                    ranAt: 'N/A',
-                };
-            });
+                });
 
             const tableHeaders = ['NAME', 'VERSION', 'STATUS', 'RAN_AT', 'HASH', 'SQL'];
-            const tableData = [
-                tableHeaders,
-                ...migrations.map(m => [m.name, m.version, m.status, m.ranAt, m.md5, m.queryString]),
-            ];
+            const tableData = [tableHeaders, ...migrations.map(m => [m.name, m.version, m.status, m.ranAt, m.md5, m.queryString])];
 
             const tableConfig = {
                 columns: {
@@ -236,7 +249,19 @@ async function run(commandLineArgs, callback) {
             logMessage(`migrating ${version >= databaseVersion ? 'up' : 'down'} to ${version}`);
         })
         .then(() => {
-            return postgrator.migrate(commandLineArgs.to);
+            console.log('Do you want to run the migrations?');
+            prompts({
+                type: 'toggle',
+                name: 'confirmation',
+                message: 'Can you confirm?',
+                initial: false,
+                active: 'Yes',
+                inactive: 'No',
+            }).then((response) => {
+                if (response.confirmation) {
+                    return postgrator.migrate(commandLineArgs.to);
+                }
+            });
         });
 
     promiseToCallback(migratePromise, (err, migrations) => {
