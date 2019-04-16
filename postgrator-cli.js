@@ -249,18 +249,20 @@ async function run(commandLineArgs, callback) {
             logMessage(`migrating ${version >= databaseVersion ? 'up' : 'down'} to ${version}`);
         })
         .then(() => {
-            console.log('Do you want to run the migrations?');
             prompts({
                 type: 'toggle',
                 name: 'confirmation',
-                message: 'Can you confirm?',
+                message: 'Do you want to run the migrations?',
                 initial: false,
                 active: 'Yes',
                 inactive: 'No',
             }).then((response) => {
                 if (response.confirmation) {
+                    console.log('A bold choice, Running the migrations.');
                     return postgrator.migrate(commandLineArgs.to);
                 }
+                console.log('\n A wise choice, until next time.');
+                process.exit(0);
             });
         });
 
