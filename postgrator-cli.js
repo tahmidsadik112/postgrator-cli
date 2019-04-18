@@ -98,17 +98,7 @@ async function run(commandLineArgs, callback) {
             callback(new Error(`Config file not found: ${configFile}`));
             return;
         }
-        const config = require(configFile);
-        postgratorConfig = {
-            ...config,
-            migrationDirectory: path.join(
-                configFile
-                    .split('/')
-                    .slice(0, -1)
-                    .join('/'),
-                config.migrationDirectory
-            ),
-        };
+        postgratorConfig = require(configFile);
     } else {
         postgratorConfig = {
             migrationDirectory: commandLineArgs['migration-directory'],
