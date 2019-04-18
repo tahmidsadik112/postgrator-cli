@@ -90,9 +90,7 @@ async function run(commandLineArgs, callback) {
 
     let postgratorConfig;
     if (commandLineArgs.config) {
-        const configFile = path.isAbsolute(commandLineArgs.config)
-            ? commandLineArgs.config
-            : path.join(process.cwd(), commandLineArgs.config);
+        const configFile = path.isAbsolute(commandLineArgs.config) ? commandLineArgs.config : path.join(__dirname, commandLineArgs.config);
 
         try {
             fs.accessSync(configFile, fs.F_OK);
@@ -100,7 +98,17 @@ async function run(commandLineArgs, callback) {
             callback(new Error(`Config file not found: ${configFile}`));
             return;
         }
-        postgratorConfig = require(configFile);
+        const config = require(configFile);
+        postgratorConfig = {
+            ...config,
+            migrationDirectory: path.join(
+                configFile
+                    .split('/')
+                    .slice(0, -1)
+                    .join('/'),
+                config.migrationDirectory
+            ),
+        };
     } else {
         postgratorConfig = {
             migrationDirectory: commandLineArgs['migration-directory'],
@@ -135,6 +143,11 @@ async function run(commandLineArgs, callback) {
     try {
         postgrator = new Postgrator(postgratorConfig);
         if (commandLineArgs.info) {
+            const tables = (await postgrator.runQuery('SHOW TABLES')).rows.map(r => Object.values(r)[0]);
+            if (!tables.includes('schemaversion')) {
+                console.log(`No migrations were found. Please run ${chalk.green('npm run migrate')} first`);
+                process.exit(0);
+            }
             const migrationsFromDb = (await postgrator.runQuery('SELECT * FROM schemaversion')).rows
                 .map((m) => {
                     const newObj = {};
