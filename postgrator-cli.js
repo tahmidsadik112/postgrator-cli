@@ -90,7 +90,9 @@ async function run(commandLineArgs, callback) {
 
     let postgratorConfig;
     if (commandLineArgs.config) {
-        const configFile = path.isAbsolute(commandLineArgs.config) ? commandLineArgs.config : path.join(__dirname, commandLineArgs.config);
+        const configFile = path.isAbsolute(commandLineArgs.config)
+            ? commandLineArgs.config
+            : path.join(process.cwd(), commandLineArgs.config);
 
         try {
             fs.accessSync(configFile, fs.F_OK);
