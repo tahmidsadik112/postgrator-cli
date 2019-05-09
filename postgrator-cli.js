@@ -6,6 +6,7 @@ const { table, getBorderCharacters } = require('table');
 const { highlight } = require('cli-highlight');
 const chalk = require('chalk');
 const prompts = require('prompts');
+// const terminalLink = require('terminal-link');
 const pjson = require('./package.json');
 const commandLineOptions = require('./command-line-options');
 
@@ -156,11 +157,14 @@ async function run(commandLineArgs, callback) {
             const migrations = (await postgrator.getMigrations())
                 .filter(m => m.action === 'do')
                 .map((m) => {
-                    const link = [`file://${postgratorConfig.migrationDirectory}/${m.filename}`].join('');
-                    m.queryString = `${highlight(m.getSql().substr(0, 250), {
+                    // const link = terminalLink('Open File', `file://${postgratorConfig.migrationDirectory}/${m.filename}`).replace(/[\u0001-\u0006\u0008-\u0009\u000B-\u001A]/g, '');
+                    // const link = `file://${postgratorConfig.migrationDirectory}/${m.filename}`;
+
+                    m.queryString = `${highlight(m.getSql().replace(/[\u0001-\u0006\u0008-\u0009\u000B-\u001A]/g, '').substr(0, 500), {
                         language: 'sql',
                         ignoreIllegals: true,
-                    })}\n${link}`;
+                    })}`;
+
                     if (migrationsFromDb[`${m.version}`]) {
                         return {
                             ...m,
@@ -193,6 +197,9 @@ async function run(commandLineArgs, callback) {
 
             const tableConfig = {
                 columns: {
+                    0: {
+                        width: 14,
+                    },
                     1: {
                         width: 7,
                     },
@@ -200,7 +207,10 @@ async function run(commandLineArgs, callback) {
                         width: 15,
                     },
                     4: {
-                        width: 17,
+                        width: 15,
+                    },
+                    5: {
+                        width: 35,
                     },
                 },
                 border: getBorderCharacters('norc'),
@@ -254,7 +264,7 @@ async function run(commandLineArgs, callback) {
             logMessage(`migrating ${version >= databaseVersion ? 'up' : 'down'} to ${version}`);
         })
         .then(() => {
-            if (process.env.NODE_ENV === 'development') {
+            if (process.env.NODE_ENV !== 'development' || process.env.NODE_ENV === 'production') {
                 return prompts({
                     type: 'toggle',
                     name: 'confirmation',
