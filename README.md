@@ -7,13 +7,13 @@ Uses [Postgrator](https://github.com/rickbergfalk/postgrator) node.js library de
 ## Installation
 
 ```
-npm install -g postgrator-cli
+npm install -g postgrator-cli2
 ```
 
 Or if you prefer to use it locally on your project using npm scripts of package.json:
 
 ```
-npm install postgrator-cli --save-dev
+npm install postgrator-cli2 --save-dev
 ```
 
 And install the appropriate DB engine(s) if not installed yet:
@@ -126,17 +126,16 @@ To run postgrator tests locally, you'll need:
 then run `npm test`
 
 ## TODO
-* Allow overriding config file parameters from command line
+- Allow overriding config file parameters from command line
 
 ## Release notes
 
-### 3.1.0
-#### 15.12.2018
-* Added option `detect-version-conflicts` to detect if there are multiple migration files with same version number.
+### 0.2.1
+- Updates github link
 
-### 3.0.0
-#### 1.7.2018
-* Upgraded for Postgrator 3.
+### 0.1.5
+- Adds `-i` option to print status of the migrations.
+
 
 ## License
 
