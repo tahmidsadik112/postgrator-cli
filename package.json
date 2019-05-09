@@ -17,7 +17,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/MattiLehtinen/postgrator-cli"
+        "url": "https://github.com/tahmidsadik112/postgrator-cli2"
     },
     "files": [
         "LICENSE.md",
