@@ -153,6 +153,19 @@ async function run(commandLineArgs, callback) {
                     return acc;
                 }, {});
 
+
+            const fixMigrationFileConflict = (migrations) => {
+                const maxMigrationVersion = migrations.reduce((acc, migration) => {
+                    return migration.version > acc ? migration.version : acc;
+                }, 0);
+                const corruptedMigrations = migrations.filter(m => m.isCorrupted);
+                corruptedMigrations.forEach(m => {
+                    console.log(`
+                    migration file conflict detected, do you want to change the filename from ${m.filename} to ${(maxMigrationVersion + 1).toString().padStart(4, 0)}.${m.filename.split('.').slice(1).join(".")}`)
+                })
+                return maxMigrationVersion;
+            }
+
             const migrations = (await postgrator.getMigrations())
                 .filter(m => m.action === 'do')
                 .map((m) => {
@@ -171,6 +184,7 @@ async function run(commandLineArgs, callback) {
                     if (migrationsFromDb[`${m.version}`]) {
                         return {
                             ...m,
+                            isCorrupted: m.md5 !== migrationsFromDb[m.version].md5,
                             status:
                                 m.md5 === migrationsFromDb[m.version].md5
                                     ? chalk
@@ -195,6 +209,10 @@ async function run(commandLineArgs, callback) {
                     };
                 });
 
+            console.log(migrations);
+            console.log('==================');
+            console.log(migrationsFromDb);
+            console.log(fixMigrationFileConflict(migrations));
             const tableHeaders = ['NAME', 'VERSION', 'STATUS', 'RAN_AT', 'HASH', 'SQL'];
             const tableData = [tableHeaders, ...migrations.map(m => [m.name, m.version, m.status, m.ranAt, m.md5, m.queryString])];
 
@@ -218,7 +236,7 @@ async function run(commandLineArgs, callback) {
                 },
                 border: getBorderCharacters('norc'),
             };
-            console.log(table(tableData, tableConfig));
+            // console.log(table(tableData, tableConfig));
             return;
         }
     } catch (err) {
